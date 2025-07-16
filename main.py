@@ -4,6 +4,7 @@ import sys
 import signal
 import logging
 import argparse
+import inspect
 from pathlib import Path
 import daemon
 import daemon.pidfile
@@ -36,19 +37,23 @@ class SoteriaDaemon:
                 except ProcessLookupError:
                     os.remove(self.pidfile_path)
         
-        context = daemon.DaemonContext(
-            working_directory=os.getcwd(),
-            pidfile=daemon.pidfile.PIDLockFile(self.pidfile_path),
-            preserve_files=[
-                sys.stdout,
-                sys.stderr,
-            ],
-            signal_map={
+        # Create daemon context with compatibility for different versions
+        context_args = {
+            'working_directory': os.getcwd(),
+            'pidfile': daemon.pidfile.PIDLockFile(self.pidfile_path),
+            'signal_map': {
                 signal.SIGTERM: self._signal_handler,
                 signal.SIGINT: self._signal_handler,
                 signal.SIGHUP: self._reload_config,
             }
-        )
+        }
+        
+        # Check if preserve_files is supported
+        import inspect
+        if 'preserve_files' in inspect.signature(daemon.DaemonContext.__init__).parameters:
+            context_args['preserve_files'] = [sys.stdout, sys.stderr]
+        
+        context = daemon.DaemonContext(**context_args)
         
         with context:
             self._run()
