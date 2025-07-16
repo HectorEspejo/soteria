@@ -1,0 +1,28 @@
+[Unit]
+Description=Soteria IDS - Network Intrusion Detection System
+Documentation=https://github.com/soteria/soteria-ids
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/opt/soteria/venv/bin/python /opt/soteria/main.py run
+Restart=on-failure
+RestartSec=10
+
+# Security settings
+User=root
+Group=root
+PrivateTmp=true
+NoNewPrivileges=true
+
+# Environment
+Environment="PYTHONUNBUFFERED=1"
+Environment="SOTERIA_CONFIG=/etc/soteria/soteria.yaml"
+WorkingDirectory=/opt/soteria
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

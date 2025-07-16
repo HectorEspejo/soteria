@@ -48,14 +48,30 @@ class SoteriaDaemon:
             }
         }
         
-        # Check if preserve_files is supported
+        # Check if files_preserve is supported (note: it's files_preserve, not preserve_files)
         import inspect
-        if 'preserve_files' in inspect.signature(daemon.DaemonContext.__init__).parameters:
-            context_args['preserve_files'] = [sys.stdout, sys.stderr]
+        if 'files_preserve' in inspect.signature(daemon.DaemonContext.__init__).parameters:
+            context_args['files_preserve'] = [sys.stdout, sys.stderr]
         
         context = daemon.DaemonContext(**context_args)
         
         with context:
+            # Write PID file after daemon context is established
+            pid = os.getpid()
+            try:
+                # Ensure directory exists
+                pid_dir = os.path.dirname(self.pidfile_path)
+                if not os.path.exists(pid_dir):
+                    os.makedirs(pid_dir, exist_ok=True)
+                
+                # Write PID
+                with open(self.pidfile_path, 'w') as f:
+                    f.write(str(pid))
+                logger.info(f"PID file written: {self.pidfile_path} (PID: {pid})")
+            except Exception as e:
+                logger.error(f"Failed to write PID file: {e}")
+                sys.exit(1)
+            
             self._run()
     
     def _run(self):
@@ -107,6 +123,15 @@ class SoteriaDaemon:
         logger.info(f"Received signal {signum}, shutting down...")
         if self.engine:
             self.engine.stop()
+        
+        # Remove PID file
+        try:
+            if os.path.exists(self.pidfile_path):
+                os.remove(self.pidfile_path)
+                logger.info(f"PID file removed: {self.pidfile_path}")
+        except Exception as e:
+            logger.error(f"Failed to remove PID file: {e}")
+        
         sys.exit(0)
     
     def _reload_config(self, signum, frame):

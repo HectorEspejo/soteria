@@ -62,6 +62,13 @@ mkdir -p /var/lib/soteria/data
 # Copy files
 echo -e "${YELLOW}Copying files...${NC}"
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# Fix directory name if needed (logging -> logs_management)
+if [ -d "$SCRIPT_DIR/logging" ] && [ ! -d "$SCRIPT_DIR/logs_management" ]; then
+    echo -e "${YELLOW}Renaming logging directory to logs_management...${NC}"
+    mv "$SCRIPT_DIR/logging" "$SCRIPT_DIR/logs_management"
+fi
+
 cp -r "$SCRIPT_DIR"/* /opt/soteria/
 chmod +x /opt/soteria/main.py
 
@@ -86,6 +93,28 @@ echo -e "${YELLOW}Visit https://www.maxmind.com to obtain a free license${NC}"
 echo -e "${YELLOW}Setting up configuration...${NC}"
 if [ ! -f /etc/soteria/soteria.yaml ]; then
     cp /opt/soteria/config/soteria.yaml /etc/soteria/
+    
+    # Update network interfaces based on system
+    echo -e "${YELLOW}Detecting network interfaces...${NC}"
+    INTERFACES=$(ip link show | grep -E "^[0-9]+:" | cut -d: -f2 | tr -d ' ' | grep -v "^lo$" | head -3)
+    if [ ! -z "$INTERFACES" ]; then
+        # Create a temporary file with updated interfaces
+        cp /etc/soteria/soteria.yaml /etc/soteria/soteria.yaml.tmp
+        
+        # Replace default interfaces
+        echo "interfaces:" > /tmp/interfaces.tmp
+        echo "$INTERFACES" | while read iface; do
+            echo "  - $iface" >> /tmp/interfaces.tmp
+        done
+        
+        # Update the config file
+        sed -i '/^interfaces:/,/^[^ ]/{/^interfaces:/!d}' /etc/soteria/soteria.yaml.tmp
+        sed -i '/^interfaces:/r /tmp/interfaces.tmp' /etc/soteria/soteria.yaml.tmp
+        sed -i '/^interfaces:/d' /etc/soteria/soteria.yaml.tmp
+        mv /etc/soteria/soteria.yaml.tmp /etc/soteria/soteria.yaml
+        rm -f /tmp/interfaces.tmp
+    fi
+    
     echo -e "${YELLOW}Default configuration copied to /etc/soteria/soteria.yaml${NC}"
     echo -e "${YELLOW}Please edit this file to add your API keys and customize settings${NC}"
 fi
@@ -103,7 +132,18 @@ chmod +x /usr/local/bin/soteria
 
 # Install systemd service
 echo -e "${YELLOW}Installing systemd service...${NC}"
-cp /opt/soteria/soteria.service /etc/systemd/system/
+
+# Check if we should use simple service (more compatible)
+if [ -f /opt/soteria/soteria-simple.service ]; then
+    echo -e "${YELLOW}Using simple systemd service for better compatibility...${NC}"
+    cp /opt/soteria/soteria-simple.service /etc/systemd/system/soteria.service
+else
+    cp /opt/soteria/soteria.service /etc/systemd/system/
+fi
+
+# Fix PID file path if needed
+sed -i 's|/var/run/soteria.pid|/run/soteria.pid|g' /etc/systemd/system/soteria.service
+
 systemctl daemon-reload
 
 # Create log rotation config
@@ -149,5 +189,10 @@ echo -e "4. Check status: ${GREEN}systemctl status soteria${NC}"
 echo -e "5. View logs: ${GREEN}journalctl -u soteria -f${NC}"
 echo -e "6. Access dashboard: ${GREEN}http://localhost:8080${NC}"
 echo -e "7. Use CLI: ${GREEN}soteria cli${NC}"
+echo
+echo -e "${YELLOW}Troubleshooting:${NC}"
+echo -e "- If the service fails to start, check: ${GREEN}journalctl -u soteria -n 50${NC}"
+echo -e "- For testing without systemd: ${GREEN}soteria run${NC}"
+echo -e "- To test with a different PID file: ${GREEN}soteria run -p /tmp/soteria.pid${NC}"
 echo
 echo -e "${YELLOW}For more information, see the documentation.${NC}"
