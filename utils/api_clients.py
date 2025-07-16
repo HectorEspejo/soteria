@@ -58,8 +58,19 @@ class VirusTotalClient:
         self.headers = {"x-apikey": api_key}
         self.rate_limiter = RateLimiter(max_calls=4, period=60)
         self.cache = APICache(ttl=3600)
+        self.is_valid = self._validate_api_key()
+    
+    def _validate_api_key(self) -> bool:
+        """Check if API key is valid (not a placeholder)"""
+        if not self.api_key or self.api_key.startswith("YOUR_") or len(self.api_key) < 10:
+            logger.warning("VirusTotal API key not configured or invalid")
+            return False
+        return True
     
     def scan_url(self, url: str) -> Dict[str, Any]:
+        if not self.is_valid:
+            return {"error": "API key not configured", "malicious": False, "score": 0}
+        
         cache_key = f"vt_url:{url}"
         cached = self.cache.get(cache_key)
         if cached:
@@ -105,6 +116,9 @@ class VirusTotalClient:
             return {"error": str(e), "malicious": False, "score": 0}
     
     def scan_file_hash(self, file_hash: str) -> Dict[str, Any]:
+        if not self.is_valid:
+            return {"error": "API key not configured", "malicious": False, "score": 0}
+        
         cache_key = f"vt_hash:{file_hash}"
         cached = self.cache.get(cache_key)
         if cached:
@@ -256,8 +270,19 @@ class GoogleSafeBrowsingClient:
         self.base_url = "https://safebrowsing.googleapis.com/v4"
         self.rate_limiter = RateLimiter(max_calls=10000, period=86400)
         self.cache = APICache(ttl=1800)
+        self.is_valid = self._validate_api_key()
+    
+    def _validate_api_key(self) -> bool:
+        """Check if API key is valid (not a placeholder)"""
+        if not self.api_key or self.api_key.startswith("YOUR_") or len(self.api_key) < 10:
+            logger.warning("Google Safe Browsing API key not configured or invalid")
+            return False
+        return True
     
     def check_url(self, url: str) -> Dict[str, Any]:
+        if not self.is_valid:
+            return {"error": "API key not configured", "malicious": False, "score": 0}
+        
         cache_key = f"gsb:{url}"
         cached = self.cache.get(cache_key)
         if cached:

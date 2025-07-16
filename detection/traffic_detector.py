@@ -184,8 +184,8 @@ class TrafficDetector:
             )
             self.stats['suspicious_connections'] += 1
     
-    def _detect_statistical_anomaly(self, ip: str, stats: Dict, current_time: float):
-        recent_times = [t for t in stats['packets'] if current_time - t < self.window_size]
+    def _detect_statistical_anomaly(self, ip: str, ip_stats: Dict, current_time: float):
+        recent_times = [t for t in ip_stats['packets'] if current_time - t < self.window_size]
         if len(recent_times) < self.min_packets:
             return
         
@@ -199,11 +199,11 @@ class TrafficDetector:
         if std_interval == 0:
             return
         
-        zscore = np.abs(stats.zscore(intervals))
-        max_zscore = np.max(zscore)
+        zscore_values = np.abs(stats.zscore(intervals))
+        max_zscore = np.max(zscore_values)
         
         if max_zscore > self.zscore_threshold:
-            recent_bytes = sum(size for t, size in stats['bytes'] if current_time - t < 60)
+            recent_bytes = sum(size for t, size in ip_stats['bytes'] if current_time - t < 60)
             bytes_per_second = recent_bytes / 60.0
             
             self._create_threat_event(

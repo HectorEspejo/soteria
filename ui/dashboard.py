@@ -10,6 +10,12 @@ import time
 
 logger = logging.getLogger(__name__)
 
+def json_serializer(obj):
+    """JSON serializer for objects not serializable by default"""
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    raise TypeError(f"Type {type(obj)} not serializable")
+
 class DashboardServer:
     def __init__(self, host: str, port: int, debug: bool, db_logger, engine):
         self.host = host
@@ -20,7 +26,8 @@ class DashboardServer:
         
         self.app = Flask(__name__)
         self.app.config['SECRET_KEY'] = secrets.token_hex(32)
-        self.socketio = SocketIO(self.app, cors_allowed_origins="*")
+        self.app.json_encoder = lambda: json.JSONEncoder(default=json_serializer)
+        self.socketio = SocketIO(self.app, cors_allowed_origins="*", json=json, json_kwargs={'default': json_serializer})
         
         self.is_running = False
         self._setup_routes()
