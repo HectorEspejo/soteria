@@ -110,7 +110,8 @@ class DashboardServer:
             port=self.port,
             debug=self.debug,
             use_reloader=False,
-            log_output=False
+            log_output=False,
+            allow_unsafe_werkzeug=True  # Required for production use
         )
     
     def stop(self):

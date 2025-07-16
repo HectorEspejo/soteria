@@ -141,7 +141,7 @@ rule crypto_miner
         
         for proc in psutil.process_iter(['pid', 'name', 'exe', 'cmdline', 
                                        'create_time', 'cpu_percent', 
-                                       'memory_percent', 'connections']):
+                                       'memory_percent']):
             try:
                 if not self.is_running:
                     break
@@ -310,7 +310,7 @@ rule crypto_miner
                 threat_reasons.append("Possible cryptocurrency miner")
         
         try:
-            connections = info.get('connections', [])
+            connections = proc.connections()
             suspicious_ports = [22, 23, 445, 3389, 4444, 5555, 6666, 7777, 8888, 9999]
             
             for conn in connections:
