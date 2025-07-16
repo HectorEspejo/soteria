@@ -1,0 +1,33 @@
+[Unit]
+Description=Soteria IDS - Network Intrusion Detection System
+Documentation=https://github.com/soteria/soteria-ids
+After=network.target
+
+[Service]
+Type=forking
+PIDFile=/var/run/soteria.pid
+ExecStart=/usr/local/bin/soteria start
+ExecStop=/usr/local/bin/soteria stop
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=10
+
+# Security settings
+User=root
+Group=root
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/soteria /var/lib/soteria
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+
+# Environment
+Environment="PYTHONUNBUFFERED=1"
+Environment="SOTERIA_CONFIG=/etc/soteria/soteria.yaml"
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soteria IDS Dashboard</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #1a1a2e;
+            color: #eee;
+            line-height: 1.6;
+        }
+        
+        .header {
+            background-color: #16213e;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 1.8rem;
+            color: #4fbdba;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .status-bar {
+            background-color: #0f3460;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        
+        .status-item {
+            text-align: center;
+        }
+        
+        .status-item h3 {
+            color: #7ec8e3;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+        }
+        
+        .status-item .value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #fff;
+        }
+        
+        .status-item.online .value {
+            color: #4caf50;
+        }
+        
+        .status-item.threats .value {
+            color: #ff9800;
+        }
+        
+        .status-item.critical .value {
+            color: #f44336;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .card {
+            background-color: #0f3460;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .card h2 {
+            color: #4fbdba;
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+        
+        .threat-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .threat-item {
+            background-color: #16213e;
+            border-left: 4px solid #666;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+        
+        .threat-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .threat-item.critical {
+            border-left-color: #f44336;
+        }
+        
+        .threat-item.high {
+            border-left-color: #ff9800;
+        }
+        
+        .threat-item.medium {
+            border-left-color: #ffc107;
+        }
+        
+        .threat-item.low {
+            border-left-color: #4caf50;
+        }
+        
+        .threat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        
+        .threat-type {
+            font-weight: bold;
+            color: #fff;
+        }
+        
+        .threat-time {
+            font-size: 0.9rem;
+            color: #aaa;
+        }
+        
+        .threat-details {
+            font-size: 0.9rem;
+            color: #ddd;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+        
+        .connection-status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 0.5rem 1rem;
+            background-color: #4caf50;
+            color: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .connection-status.disconnected {
+            background-color: #f44336;
+        }
+        
+        .pulse {
+            width: 10px;
+            height: 10px;
+            background-color: white;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.2);
+                opacity: 0.7;
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        
+        .full-width {
+            grid-column: 1 / -1;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #333;
+        }
+        
+        th {
+            background-color: #16213e;
+            color: #4fbdba;
+            font-weight: bold;
+        }
+        
+        tr:hover {
+            background-color: #16213e;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Soteria IDS - Network Monitoring Dashboard</h1>
+    </div>
+    
+    <div class="container">
+        <div class="status-bar">
+            <div class="status-item online">
+                <h3>System Status</h3>
+                <div class="value" id="system-status">-</div>
+            </div>
+            <div class="status-item">
+                <h3>Uptime</h3>
+                <div class="value" id="uptime">-</div>
+            </div>
+            <div class="status-item threats">
+                <h3>Threats (24h)</h3>
+                <div class="value" id="threat-count">0</div>
+            </div>
+            <div class="status-item critical">
+                <h3>Critical Alerts</h3>
+                <div class="value" id="critical-count">0</div>
+            </div>
+            <div class="status-item">
+                <h3>Packets/sec</h3>
+                <div class="value" id="packet-rate">0</div>
+            </div>
+        </div>
+        
+        <div class="grid">
+            <div class="card">
+                <h2>Recent Threats</h2>
+                <div class="threat-list" id="threat-list">
+                    <p style="color: #666;">No threats detected</p>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>Threat Distribution</h2>
+                <div class="chart-container">
+                    <canvas id="threat-chart"></canvas>
+                </div>
+            </div>
+            
+            <div class="card full-width">
+                <h2>Active Connections</h2>
+                <table id="connections-table">
+                    <thead>
+                        <tr>
+                            <th>Source IP</th>
+                            <th>Destination IP</th>
+                            <th>Port</th>
+                            <th>Protocol</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="connections-body">
+                        <tr>
+                            <td colspan="5" style="text-align: center; color: #666;">No active connections</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="card">
+                <h2>Network Traffic</h2>
+                <div class="chart-container">
+                    <canvas id="traffic-chart"></canvas>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>System Resources</h2>
+                <div id="system-resources">
+                    <p>Loading...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="connection-status" id="connection-status">
+        <div class="pulse"></div>
+        <span id="connection-text">Connecting...</span>
+    </div>
+    
+    <script>
+        const socket = io();
+        
+        // Chart configurations
+        const threatChartCtx = document.getElementById('threat-chart').getContext('2d');
+        const threatChart = new Chart(threatChartCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Critical', 'High', 'Medium', 'Low'],
+                datasets: [{
+                    data: [0, 0, 0, 0],
+                    backgroundColor: ['#f44336', '#ff9800', '#ffc107', '#4caf50']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            color: '#eee'
+                        }
+                    }
+                }
+            }
+        });
+        
+        const trafficChartCtx = document.getElementById('traffic-chart').getContext('2d');
+        const trafficChart = new Chart(trafficChartCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Packets/sec',
+                    data: [],
+                    borderColor: '#4fbdba',
+                    backgroundColor: 'rgba(79, 189, 186, 0.1)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        ticks: { color: '#aaa' },
+                        grid: { color: '#333' }
+                    },
+                    y: {
+                        ticks: { color: '#aaa' },
+                        grid: { color: '#333' }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        labels: { color: '#eee' }
+                    }
+                }
+            }
+        });
+        
+        // Socket event handlers
+        socket.on('connect', () => {
+            updateConnectionStatus(true);
+            socket.emit('request_update');
+        });
+        
+        socket.on('disconnect', () => {
+            updateConnectionStatus(false);
+        });
+        
+        socket.on('status_update', (data) => {
+            updateDashboard(data);
+        });
+        
+        function updateConnectionStatus(connected) {
+            const statusEl = document.getElementById('connection-status');
+            const textEl = document.getElementById('connection-text');
+            
+            if (connected) {
+                statusEl.classList.remove('disconnected');
+                textEl.textContent = 'Connected';
+            } else {
+                statusEl.classList.add('disconnected');
+                textEl.textContent = 'Disconnected';
+            }
+        }
+        
+        function updateDashboard(data) {
+            // Update status bar
+            document.getElementById('system-status').textContent = data.status.is_running ? 'Online' : 'Offline';
+            
+            if (data.status.uptime_seconds) {
+                const hours = Math.floor(data.status.uptime_seconds / 3600);
+                const minutes = Math.floor((data.status.uptime_seconds % 3600) / 60);
+                document.getElementById('uptime').textContent = `${hours}h ${minutes}m`;
+            }
+            
+            if (data.statistics.threat_stats) {
+                document.getElementById('threat-count').textContent = data.statistics.threat_stats.total_threats;
+                document.getElementById('critical-count').textContent = data.statistics.threat_stats.critical;
+                
+                // Update threat chart
+                threatChart.data.datasets[0].data = [
+                    data.statistics.threat_stats.critical,
+                    data.statistics.threat_stats.high,
+                    data.statistics.threat_stats.medium,
+                    data.statistics.threat_stats.low
+                ];
+                threatChart.update();
+            }
+            
+            if (data.status.components && data.status.components.packet_sniffer) {
+                const pps = data.status.components.packet_sniffer.packets_per_second || 0;
+                document.getElementById('packet-rate').textContent = Math.round(pps);
+                
+                // Update traffic chart
+                const now = new Date().toLocaleTimeString();
+                trafficChart.data.labels.push(now);
+                trafficChart.data.datasets[0].data.push(pps);
+                
+                // Keep only last 20 points
+                if (trafficChart.data.labels.length > 20) {
+                    trafficChart.data.labels.shift();
+                    trafficChart.data.datasets[0].data.shift();
+                }
+                trafficChart.update();
+            }
+            
+            // Update recent threats
+            if (data.recent_threats && data.recent_threats.length > 0) {
+                const threatList = document.getElementById('threat-list');
+                threatList.innerHTML = data.recent_threats.map(threat => `
+                    <div class="threat-item ${threat.severity}">
+                        <div class="threat-header">
+                            <span class="threat-type">${threat.type.replace(/_/g, ' ').toUpperCase()}</span>
+                            <span class="threat-time">${new Date(threat.timestamp).toLocaleTimeString()}</span>
+                        </div>
+                        <div class="threat-details">
+                            ${threat.source_ip ? `Source: ${threat.source_ip}` : ''}
+                            ${threat.url ? `<br>URL: ${threat.url}` : ''}
+                            ${threat.process_name ? `<br>Process: ${threat.process_name}` : ''}
+                            <br>Score: ${threat.score}
+                        </div>
+                    </div>
+                `).join('');
+            }
+            
+            // Update system resources
+            if (data.status.threads) {
+                const resourcesEl = document.getElementById('system-resources');
+                const threadInfo = Object.entries(data.status.threads).map(([name, info]) => `
+                    <div style="margin-bottom: 0.5rem;">
+                        <strong>${name}:</strong> ${info.alive ? 'Running' : 'Stopped'}
+                        ${info.errors > 0 ? ` (${info.errors} errors)` : ''}
+                    </div>
+                `).join('');
+                resourcesEl.innerHTML = threadInfo;
+            }
+        }
+        
+        // Request updates every 5 seconds
+        setInterval(() => {
+            if (socket.connected) {
+                socket.emit('request_update');
+            }
+        }, 5000);
+    </script>
+</body>
+</html>

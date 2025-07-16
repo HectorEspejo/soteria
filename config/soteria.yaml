@@ -1,0 +1,88 @@
+# Soteria IDS Configuration File
+
+# Network interfaces to monitor
+interfaces:
+  - eth0
+  - wlan0
+
+# API keys for external services
+api_keys:
+  virustotal: "YOUR_VIRUSTOTAL_API_KEY"
+  abuseipdb: "YOUR_ABUSEIPDB_API_KEY"
+  google_safe_browsing: "YOUR_GOOGLE_SAFE_BROWSING_API_KEY"
+
+# Detection thresholds
+thresholds:
+  url_threat_score: 70              # Score above which URL is considered malicious (0-100)
+  traffic_anomaly_zscore: 2.5       # Z-score threshold for traffic anomaly detection
+  process_cpu_threshold: 80         # CPU usage percentage threshold
+  process_memory_threshold: 80      # Memory usage percentage threshold
+  connection_rate_threshold: 100    # Connections per second threshold
+  packet_rate_threshold: 10000      # Packets per second threshold
+
+# Alert configuration
+alerting:
+  email:
+    enabled: true
+    smtp_server: "smtp.gmail.com"
+    smtp_port: 587
+    username: "alerts@example.com"
+    password: "your_app_password"
+    recipients:
+      - "admin@example.com"
+      - "security@example.com"
+  slack:
+    enabled: true
+    webhook_url: "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+  sms:
+    enabled: false
+    twilio_sid: "YOUR_TWILIO_SID"
+    twilio_token: "YOUR_TWILIO_TOKEN"
+    from_number: "+1234567890"
+    to_numbers:
+      - "+0987654321"
+
+# Logging configuration
+logging:
+  database: "logs/soteria.db"
+  max_log_size: "100MB"
+  retention_days: 30
+  log_level: "INFO"
+
+# Web dashboard configuration
+dashboard:
+  host: "0.0.0.0"
+  port: 8080
+  debug: false
+  secret_key: null  # Will be auto-generated if not set
+  ssl_cert: null    # Path to SSL certificate
+  ssl_key: null     # Path to SSL key
+
+# Detection modules configuration
+detection:
+  url:
+    enabled: true
+    whitelist:
+      - "*.internal.company.com"
+      - "trusted-domain.com"
+    blacklist:
+      - "known-malicious.com"
+    cache_ttl: 3600  # Cache TTL in seconds
+  program:
+    enabled: true
+    scan_interval: 60  # Process scan interval in seconds
+    yara_rules_path: "rules/yara"
+    process_whitelist:
+      - "systemd"
+      - "kernel"
+      - "init"
+  traffic:
+    enabled: true
+    window_size: 300    # Analysis window in seconds
+    min_packets: 100    # Minimum packets for analysis
+
+# Performance tuning
+performance:
+  packet_sampling_rate: 1.0      # 1.0 = capture all packets, 0.1 = capture 10%
+  max_packet_queue_size: 10000   # Maximum packets in processing queue
+  worker_threads: 4              # Number of worker threads
