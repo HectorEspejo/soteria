@@ -19,7 +19,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class SoteriaDaemon:
-    def __init__(self, config_path: str, pidfile_path: str = '/var/run/soteria.pid'):
+    def __init__(self, config_path: str, pidfile_path: str = '/run/soteria.pid'):
         self.config_path = config_path
         self.pidfile_path = pidfile_path
         self.engine = None
@@ -126,7 +126,7 @@ def main():
                        help='Path to configuration file')
     
     parser.add_argument('-p', '--pidfile',
-                       default='/var/run/soteria.pid',
+                       default='/run/soteria.pid',
                        help='Path to PID file')
     
     parser.add_argument('-d', '--debug',

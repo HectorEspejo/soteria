@@ -5,7 +5,7 @@ After=network.target
 
 [Service]
 Type=forking
-PIDFile=/var/run/soteria.pid
+PIDFile=/run/soteria.pid
 ExecStart=/usr/local/bin/soteria start
 ExecStop=/usr/local/bin/soteria stop
 ExecReload=/bin/kill -HUP $MAINPID
@@ -19,7 +19,7 @@ PrivateTmp=true
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/var/log/soteria /var/lib/soteria
+ReadWritePaths=/var/log/soteria /var/lib/soteria /run
 
 # Resource limits
 LimitNOFILE=65536
